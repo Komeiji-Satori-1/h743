@@ -211,21 +211,15 @@ int main(void)
     /* USER CODE BEGIN WHILE */
     while (1)
     {
-        // if (ADC_Flag == 1)
-        //{
+        //         if(ADC_Flag==1){
+        //              Split_ADC_Buffers();
 
-        // static uint32_t loop_cnt = 0;
-        // loop_cnt++;
-        // printf("\n===== LOOP #%lu START =====\n", loop_cnt);
-        // Split_ADC_Buffers();
-
-        // Calculate_Input_Impedance(Rs);
-        // Calculate_Output_Impedance(RL);
-        // Calculate_Gain();
-        // sweep_freq(1000, 200000, 1000);
-        // printf("===== LOOP #%lu END =====\n", loop_cnt);
-        // Start_ADC_Capture();
-        //}
+        //              Calculate_Input_Impedance(Rs);
+        //              Calculate_Output_Impedance(RL);
+        //              Calculate_Gain();
+        //              //sweep_freq(1000, 200000, 1000);
+        //              Start_ADC_Capture();
+        //           }
 
         if (task_measure == 1)
         {
@@ -242,16 +236,25 @@ int main(void)
         }
         else if (task_sweep == 1)
         {
-            task_sweep = 0;
-            Split_ADC_Buffers();
-
-            sweep_freq(1000, 200000, 1000);
-
-            Start_ADC_Capture();
+            // 测试用正弦波数据（4个周期，0-255范围）
+            static uint8_t test_wave[ADC_SIZE];
+            static uint8_t test_init = 0;
+            if (!test_init)
+            {
+                for (int i = 0; i < ADC_SIZE; i++)
+                {
+                    test_wave[i] = (uint8_t)(127.5f + 127.0f * sinf(2.0f * 3.14159265f * i / ADC_SIZE * 4));
+                }
+                test_init = 1;
+            }
+            printf("addt s0,0,%d\xff\xff\xff", ADC_SIZE);
+            HAL_Delay(20);
+            HAL_UART_Transmit(&huart1, test_wave, ADC_SIZE, 1000);
+            HAL_Delay(20);
         }
         else if (task_fault == 1)
         {
-            task_fault = 0;
+
             Split_ADC_Buffers();
 
             ErrorDetect();
