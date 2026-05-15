@@ -236,9 +236,10 @@ int main(void)
         }
         else if (task_sweep == 1)
         {
-            // 测试用正弦波数据（4个周期，0-255范围）
             static uint8_t test_wave[ADC_SIZE];
             static uint8_t test_init = 0;
+            static uint32_t frame_cnt = 0;
+
             if (!test_init)
             {
                 for (int i = 0; i < ADC_SIZE; i++)
@@ -247,10 +248,24 @@ int main(void)
                 }
                 test_init = 1;
             }
-            printf("addt s0,0,%d\xff\xff\xff", ADC_SIZE);
+
+            frame_cnt++;
+
+            /* ---- 调试层1：用背景色变化确认串口通信正常 ---- */
+            /* 奇偶帧交替切换 s0 背景色（0=黑, 63488=红），屏幕能看到闪烁说明串口OK */
+            uint16_t bco = (frame_cnt % 2 == 0) ? 0 : 63488;
+            printf("s0.bco=%d\xff\xff\xff", bco);
+            HAL_Delay(300);
+
+            /* ---- 调试层2：逐点 add，验证波形控件本身是否响应 ---- */
+            HMI_Wave_Clear(1, 0);
             HAL_Delay(20);
-            HAL_UART_Transmit(&huart1, test_wave, ADC_SIZE, 1000);
-            HAL_Delay(20);
+            for (int i = 0; i < ADC_SIZE; i++)
+            {
+                HMI_Wave(1, 0, test_wave[i]);
+            }
+
+            HAL_Delay(500);  /* 帧间延迟，方便肉眼观察 */
         }
         else if (task_fault == 1)
         {
