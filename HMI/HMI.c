@@ -23,28 +23,39 @@ void HMI_send_float(char* obj_name, float num)
 }
 
 // 添加波形数据点（单个点）
-void HMI_Wave(char* wf_name, int ch, int val)
+void HMI_Wave(int wf_id, int ch, int val)
 {
-    // 格式: add wf_name,ch,val + 0xFF 0xFF 0xFF
-    printf("add %s,%d,%d\xff\xff\xff", wf_name, ch, val);
+    uint8_t buf[24];
+    int len = snprintf((char *)buf, sizeof(buf) - 3, "add %d,%d,%d", wf_id, ch, val);
+    buf[len]     = 0xFF;
+    buf[len + 1] = 0xFF;
+    buf[len + 2] = 0xFF;
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)(len + 3), 1000);
 }
 
 // 快速波形显示（连续数据）
-void HMI_Wave_Fast(char* wf_name, int ch, int count, float* show_data)
+void HMI_Wave_Fast(int wf_id, int ch, int count, uint8_t *data)
 {
-    printf("addt %s,%d,%d\xff\xff\xff", wf_name, ch, count);
+    uint8_t cmd[24];
+    int len = snprintf((char *)cmd, sizeof(cmd) - 3, "addt %d,%d,%d", wf_id, ch, count);
+    cmd[len]     = 0xFF;
+    cmd[len + 1] = 0xFF;
+    cmd[len + 2] = 0xFF;
+    HAL_UART_Transmit(&huart1, cmd, (uint16_t)(len + 3), 1000);
     HAL_Delay(20);
-
-    HAL_UART_Transmit(&huart1, (uint8_t*)show_data, count, 1000);
-
+    HAL_UART_Transmit(&huart1, data, (uint16_t)count, 1000);
     HAL_Delay(20);
 }
 
 // 清空波形
-void HMI_Wave_Clear(char* wf_name, int ch)
+void HMI_Wave_Clear(int wf_id, int ch)
 {
-    // 格式: cle wf_name,ch + 0xFF 0xFF 0xFF
-    printf("cle %s,%d\xff\xff\xff", wf_name, ch);
+    uint8_t buf[20];
+    int len = snprintf((char *)buf, sizeof(buf) - 3, "cle %d,%d", wf_id, ch);
+    buf[len]     = 0xFF;
+    buf[len + 1] = 0xFF;
+    buf[len + 2] = 0xFF;
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)(len + 3), 1000);
 }
 
 // 额外功能：设置组件属性

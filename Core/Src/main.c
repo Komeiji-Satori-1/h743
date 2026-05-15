@@ -236,21 +236,23 @@ int main(void)
         }
         else if (task_sweep == 1)
         {
-            // 测试用正弦波数据（4个周期，0-255范围）
-            static uint8_t test_wave[ADC_SIZE];
-            static uint8_t test_init = 0;
-            if (!test_init)
+            if (ADC_Flag == 1)
             {
-                for (int i = 0; i < ADC_SIZE; i++)
+                Split_ADC_Buffers();
+
+                static uint8_t wave_data[200];
+                for (int i = 0; i < 200; i++)
                 {
-                    test_wave[i] = (uint8_t)(127.5f + 127.0f * sinf(2.0f * 3.14159265f * i / ADC_SIZE * 4));
+                    uint16_t idx = (uint16_t)(i * ADC_SIZE / 200);
+                    wave_data[i] = (uint8_t)(ADC_U0[idx] >> 4);
                 }
-                test_init = 1;
+
+                HMI_Wave_Clear(1, 0);
+                HAL_Delay(20);
+                HMI_Wave_Fast(1, 0, 200, wave_data);
+
+                Start_ADC_Capture();
             }
-            printf("addt s0,0,%d\xff\xff\xff", ADC_SIZE);
-            HAL_Delay(20);
-            HAL_UART_Transmit(&huart1, test_wave, ADC_SIZE, 1000);
-            HAL_Delay(20);
         }
         else if (task_fault == 1)
         {
