@@ -236,36 +236,38 @@ int main(void)
         }
         else if (task_sweep == 1)
         {
-            static uint8_t test_wave[ADC_SIZE];
-            static uint8_t test_init = 0;
-            static uint32_t frame_cnt = 0;
+            /* ---- 完全绕开 printf，用裸字节直接发，排除 fputc 逐字节冲突 ---- */
 
-            if (!test_init)
-            {
-                for (int i = 0; i < ADC_SIZE; i++)
-                {
-                    test_wave[i] = (uint8_t)(127.5f + 127.0f * sinf(2.0f * 3.14159265f * i / ADC_SIZE * 4));
-                }
-                test_init = 1;
-            }
+            /* 辅助宏：把一条字符串命令 + 3xFF 通过 HAL_UART_Transmit 发出 */
+#define SEND_CMD(str)                                                        \
+    do                                                                       \
+    {                                                                        \
+        static const uint8_t _cmd[] = str "\xff\xff\xff";                    \
+        HAL_UART_Transmit(&huart1, (uint8_t *)_cmd, sizeof(_cmd) - 1, 1000); \
+    } while (0)
 
-            frame_cnt++;
+            HAL_Delay(1000); /* 启动后等1秒，确认屏幕就绪 */
 
-            /* ---- 调试层1：用背景色变化确认串口通信正常 ---- */
-            /* 奇偶帧交替切换 s0 背景色（0=黑, 63488=红），屏幕能看到闪烁说明串口OK */
-            uint16_t bco = (frame_cnt % 2 == 0) ? 0 : 63488;
-            printf("s0.bco=%d\xff\xff\xff", bco);
-            HAL_Delay(300);
+            /* 先清空通道0 */
+            SEND_CMD("cle 1,0");
+            HAL_Delay(50);
 
-            /* ---- 调试层2：逐点 add，验证波形控件本身是否响应 ---- */
-            HMI_Wave_Clear(1, 0);
-            HAL_Delay(20);
-            for (int i = 0; i < ADC_SIZE; i++)
-            {
-                HMI_Wave(1, 0, test_wave[i]);
-            }
+            /* 发5个固定值：0 / 64 / 128 / 192 / 255
+               正常应该在波形区从左到右看到5个由低到高的点 */
+            SEND_CMD("add 1,0,0");
+            HAL_Delay(10);
+            SEND_CMD("add 1,0,64");
+            HAL_Delay(10);
+            SEND_CMD("add 1,0,128");
+            HAL_Delay(10);
+            SEND_CMD("add 1,0,192");
+            HAL_Delay(10);
+            SEND_CMD("add 1,0,255");
+            HAL_Delay(10);
 
-            HAL_Delay(500);  /* 帧间延迟，方便肉眼观察 */
+            HAL_Delay(3000); /* 保持3秒供观察，然后重复 */
+
+#undef SEND_CMD
         }
         else if (task_fault == 1)
         {
