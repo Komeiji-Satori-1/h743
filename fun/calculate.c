@@ -13,11 +13,6 @@ extern float FFT_Input[];
 extern uint32_t FFT_mag_max_index;
 extern int Rs;
 extern int RL;
-
-extern float fs;
-extern float f;
-extern float alias_freq_real;
-extern int arr;
 /* 外部函数：阻塞等待一次完整的 ADC DMA 帧采集完成
  * 用于需要在函数内部主动触发重采样的场合（如 Zo 测量时切换继电器后）
  * 返回 1=成功, 0=超时 */
@@ -25,13 +20,14 @@ extern uint8_t Acquire_All_ADC_Samples_Blocking(uint32_t timeout_ms);
 extern void Set_ADC_SampleRate(float sample_rate_hz);
 extern TIM_HandleTypeDef htim3;
 // 变量
-float FFT_Ampl1 = 0;   // FFT_Process 输出幅值暂存 (第1路)
-float FFT_Ampl2 = 0;   // FFT_Process 输出幅值暂存 (第2路)
-int index_ui = 0;      // FFT_Process 输出峰值索引暂存
-int index_uo = 1;      // FFT_Process 输出峰值索引暂存
+float FFT_Ampl1 = 0; // FFT_Process 输出幅值暂存 (第1路)
+float FFT_Ampl2 = 0; // FFT_Process 输出幅值暂存 (第2
+// int index_ui=0;
+// int index_u0=0;
 unsigned char buf[64]; // 浮点强制转换为文本 用于串口屏显示
 float Ri, R0, Au;
 float f = 1000.0f; // 初始频率
+
 typedef enum
 {
     FAULT_NORMAL = 0,
@@ -66,15 +62,10 @@ typedef enum
  */
 void Calculate_Input_Impedance(int Rs)
 {
-    //FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
-    //FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
+    FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
+    FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
-    // printf("Ui_Rin:\n");
-    // showvalue(FFT_Ampl1/65536.0f*3.3f);
-    // printf("Us_Rin:\n");
-    // showvalue(FFT_Ampl2/65536.0f*3.3f);
-    // printf("Ri:\n");
-    // showvalue(Ri);
+    // printf("%.3f\n",Ri);
     sprintf((char *)buf, "%.1f", Ri);
     HMI_send_string("t0", (char *)buf);
 }
@@ -99,30 +90,25 @@ void Calculate_Input_Impedance(int Rs)
 void Calculate_Output_Impedance(int RL)
 {
     /* 步骤1: 继电器当前接通，此帧数据即为带载测量值 */
-    //FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = U0 (带载)
+    FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = U0 (带载)
 
     /* 步骤2: 断开负载，等待信号稳定 */
 
     Relay_Off();
-    HAL_Delay(300);
-
+    HAL_Delay(50);
     /* 步骤3~4: 重采样，获取空载电压 */
     if (Acquire_All_ADC_Samples_Blocking(200U) == 1U)
     {
-        //FFT_Process(ADC_U0, &FFT_Ampl2); // FFT_Ampl2 = U∞ (空载)
-        // printf("U∞_Ro:\n");
-        // showvalue(FFT_Ampl2/65536.0f*3.3f);
-        // printf("U0_Ro:\n");
-        // showvalue(FFT_Ampl1/65536.0f*3.3f);
+        FFT_Process(ADC_U0, &FFT_Ampl2); // FFT_Ampl2 = U∞ (空载)
         R0 = (float)RL * (FFT_Ampl2 - FFT_Ampl1) / FFT_Ampl1;
+        // printf("%.3f\n",R0);
         sprintf((char *)buf, "%.1f", R0);
         HMI_send_string("t1", (char *)buf);
     }
-    // printf("R0:\n");
-    // showvalue(R0);
+
     /* 步骤5: 恢复负载接通，保证后续测量环境一致 */
     Relay_On();
-    HAL_Delay(300);
+    HAL_Delay(50);
 }
 
 /**
@@ -137,33 +123,32 @@ void Calculate_Output_Impedance(int RL)
 void Calculate_Gain(void)
 {
     Relay_Off();
-    HAL_Delay(300);
+    HAL_Delay(50);
 
     if (Acquire_All_ADC_Samples_Blocking(200U) == 1U)
     {
-        FFT_Process(ADC_U0, &FFT_Ampl1, &index_uo); // FFT_Ampl1 = |U0| 幅值
-        FFT_Process(ADC_Ui, &FFT_Ampl2, &index_ui); // FFT_Ampl2 = |Ui| 幅值
-        float real_gain;
-        if(f<=100000.0){
-            real_gain = 54.0f; // 100kHz以下认为放大倍数为54
-        }
-        else{
-            real_gain = -0.0958f * (f / 1000.0f) + 63.207f; // 100kHz以上根据经验公式修正增益（f单位kHz），避免过高频率下计算的增益过大不合理
-        }
+        FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = |U0| 幅值
+        FFT_Process(ADC_Ui, &FFT_Ampl2); // FFT_Ampl2 = |Ui| 幅值
+
         /* Av(dB) = 20*log10(U0/Ui)，保护除零 */
         if (FFT_Ampl2 > 1e-6f)
-            Au = 20.0f * log10f(FFT_Ampl1 * 2.51f / FFT_Ampl2 * real_gain); // 2.51 是根据已知频率点的实际增益与计算增益的比值经验修正系数
-            //Au = 20.0f * log10f(FFT_Ampl1 / FFT_Ampl2);
-        else
-            Au = 0.0f;
-
-        // printf("[Gain] Au=%.2f dB\n", Au);
+            if (f <= 100000)
+            {
+                Au = 20.0f * log10f(FFT_Ampl1 * 2.6f / FFT_Ampl2 * 54.0f);
+            }
+            else if (f > 100000 & f <= 200000)
+            {
+                Au = 20.0f * log10f(FFT_Ampl1 * 2.6f / FFT_Ampl2 * (-0.0958f * f / 1000.0f + 63.207f));
+            }
+            else
+                Au = 0.0f;
+        // printf("%.3f\n",Au);
         sprintf((char *)buf, "%.1f", Au);
         HMI_send_string("t2", (char *)buf);
     }
 
     Relay_On();
-    HAL_Delay(300);
+    HAL_Delay(50);
 }
 
 float Calculate_UpperCutoff_Freq(float *freq_buf, float *gain_buf, uint16_t n, float ref_gain_db)
@@ -204,11 +189,8 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
     int point_count = (end_freq - begin_freq) / step_freq + 1;
     static float sweep_gain[200];
     static float sweep_freq_buf[200];
-    uint16_t j = 0;
-
-    //printf("\n===== SWEEP START =====\n");
-    //printf("[Sweep] begin=%.0f Hz  end=%.0f Hz  step=%.0f Hz  points=%d\n",
-           //begin_freq, end_freq, step_freq, point_count);
+    static uint8_t wave_data[200];
+    uint8_t j = 0;
 
     for (f = begin_freq; f <= end_freq; f += step_freq)
     {
@@ -218,16 +200,14 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
 
         if (f <= 8000.0f)
         {
-            //printf("[Sweep] f=%.0f Hz  mode=NORMAL\n", f);
             if (Acquire_All_ADC_Samples_Blocking(200U) != 1U)
             {
-                //printf("[Sweep] ADC TIMEOUT at f=%.0f Hz, skip\n", f);
                 continue;
             }
             Calculate_Gain();
             sweep_gain[j] = Au;
             sweep_freq_buf[j] = f;
-            //printf("[Sweep] f=%.0f Hz  Au=%.2f dB  [%d]\n", f, Au, j);
+            wave_data[j] = (uint8_t)((Au - 35.0f) * 255.0f / 15.0f);
             j++;
         }
         else
@@ -238,56 +218,39 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
                 k = 1;
 
             float target_fs = (f - alias_freq) / k;
-            //printf("[Sweep] f=%.0f Hz  mode=EQUIV  k=%lu  target_fs=%.1f Hz\n",
-                   //f, k, target_fs);
             Set_ADC_SampleRate(target_fs);
             HAL_Delay(100);
 
             if (Acquire_All_ADC_Samples_Blocking(200U) != 1U)
             {
-                //printf("[Sweep] ADC TIMEOUT at f=%.0f Hz, skip\n", f);
                 continue;
             }
-            float alias_freq_real = fabsf(f - k * fs);
             Calculate_Gain();
             sweep_gain[j] = Au;
             sweep_freq_buf[j] = f;
-            //printf("sweep_gain[%d]=%f\n",j,sweep_gain[j]);
-            //printf("sweep_freq[%d]=%f\n",j,sweep_freq_buf[j]);
-            //printf("[Sweep] f=%.0f Hz  Au=%.2f dB  [%d]\n", f, Au, j);
+            wave_data[j] = (uint8_t)((Au - 35.0f) * 255.0f / 15.0f);
             j++;
-            //printf("f=%.0f fs=%.1f alias=%.1f index_ui=%lu index_uo=%lu FFT_Ampl2=%.3f FFT_Ampl1=%.3f Au=%.3f\r\n",
-                   //f, fs, alias_freq_real,
-                   //index_ui, index_uo,
-                   //FFT_Ampl2, FFT_Ampl1, Au);
         }
     }
 
-    // printf("[Sweep] total valid points: %d\n", j);
-    float ref_gain_db;
+    float ref_gain_db = 0.0f;
     uint16_t count = j < 5 ? j : 5;
     float sum = 0.0f;
     for (uint16_t i = 0; i < count; i++)
     {
         sum += sweep_gain[i];
-        //printf("sweep_gain[%d]=%f\n",i,sweep_gain[i]);
     }
     ref_gain_db = sum / count;
     // showdata(sweep_gain, point_count);
-    //printf("ref_gain_db:\n");
-    //showvalue(ref_gain_db);
     float upper_cutoff_freq = Calculate_UpperCutoff_Freq(sweep_freq_buf, sweep_gain, j, ref_gain_db);
-    //printf("upper_cutoff_freq:\n");
-    //showvalue(upper_cutoff_freq);
-
-    sprintf((char *)buf, "%.1f", upper_cutoff_freq);
+    sprintf((char *)buf, "%.2f", upper_cutoff_freq);
     HMI_send_string("freq", (char *)buf);
 
-    HMI_Wave_Fast("s0.id", 1, point_count, sweep_gain);
+    HMI_Wave_Fast("s0", 1, j, wave_data);
 
-    printf("===== SWEEP END =====\n\n");
     memset(sweep_gain, 0, sizeof(sweep_gain));
     memset(sweep_freq_buf, 0, sizeof(sweep_freq_buf));
+    memset(wave_data, 0, sizeof(wave_data));
 }
 
 float Calculate_Phase_Deg(void)
@@ -296,13 +259,12 @@ float Calculate_Phase_Deg(void)
     uint32_t base_index;
 
     // Ui相位
-
-    //FFT_Process(ADC_Ui, &FFT_Ampl1);
+    FFT_Process(ADC_Ui, &FFT_Ampl1);
     base_index = FFT_mag_max_index;
     phase_in = atan2f(FFT_Input[2U * base_index + 1U], FFT_Input[2U * base_index]);
 
     // U0相位
-    //FFT_Process(ADC_U0, &FFT_Ampl2);
+    FFT_Process(ADC_U0, &FFT_Ampl2);
     phase_out = atan2f(FFT_Input[2U * base_index + 1U], FFT_Input[2U * base_index]);
     phase_deg = (phase_out - phase_in) * 180.0f / PI;
 
@@ -315,7 +277,6 @@ float Calculate_Phase_Deg(void)
         phase_deg += 360.0f;
     }
 
-    printf("[Phase] %.2f deg\n", phase_deg);
     return phase_deg;
 }
 

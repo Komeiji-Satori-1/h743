@@ -26,29 +26,15 @@ float FFT_mag_max = 0;          // 幅度谱峰值（归一化后）
 uint32_t FFT_mag_max_index = 0; // 幅度谱峰值所在 bin 下标
 
 static float window_power_correction = 1.0f; // 窗函数幅值补偿系数（Flat Top≈4.63867）
-float fs = 20000.0f;
+static float fs = 20000.0f;
 
 //串口调试
-void showdata_u16(uint16_t *buffer, uint16_t n){
-     for(uint16_t i=0;i<n;i++){
-        printf("%u ", buffer[i]);
-     }
-}
-
 void showdata(float *buffer, uint16_t n){
      for(uint8_t i=0;i<n;i++){
         printf("%.3f ", buffer[i]);
      }
 }
 
-void showsum(float sum)
-{
-    printf("%.3f\n",sum);
-}
-void showvalue(float value)
-{
-    printf("%.3f\n",value);
-}
 
 float Calculate_DC_Value(uint16_t *ADC_Buffer)
 {
@@ -58,8 +44,7 @@ float Calculate_DC_Value(uint16_t *ADC_Buffer)
     {
         sum += ADC_Buffer[i];
     }
-    //printf("DC sum:\n");
-    //showsum(sum/1024.0f);
+
     return (float)sum / 1024.0f;
 }
 
@@ -87,7 +72,7 @@ void Process_FFT_mag(float *FFT_mag, float *FFT_mag_max, uint32_t *FFT_mag_max_i
 }
 
 
-void FFT_Process(uint16_t *ADC_Buffer, float *FFT_Ampl,int *index)
+void FFT_Process(uint16_t *ADC_Buffer, float *FFT_Ampl)
 {
 	/*
 	arm_rfft_fast_instance_f32 S;
@@ -111,9 +96,7 @@ void FFT_Process(uint16_t *ADC_Buffer, float *FFT_Ampl,int *index)
     //printf("clear cache\n");
     // 计算均值（直流偏置），后续减去以消除 DC 分量 
     DC = Calculate_DC_Value(ADC_Buffer);
-    //printf("直流偏置\n");
-    //showvalue(DC);
-   
+  
     window();
 
     //去直流 + 加窗，虚部置0
@@ -140,8 +123,7 @@ void FFT_Process(uint16_t *ADC_Buffer, float *FFT_Ampl,int *index)
     //求幅度 矫正
     Process_FFT_mag(FFT_mag, &FFT_mag_max, &FFT_mag_max_index, ampl);
     ADC_FFT_Get_Wave_Mes(FFT_mag_max_index, fs, ampl, &FFT_Freq, 2);
-    //printf("[FFT] freq=%.2f Hz  ampl=%.4f\n", FFT_Freq, *ampl);
-    *index = FFT_mag_max_index;
+  // *index = FFT_mag_max_index;
 
 }
 
@@ -234,4 +216,3 @@ void ADC_FFT_Get_Wave_Mes(uint32_t FFT_mag_max_index, float fs, float *FFT_Ampl,
     *Freq = f * fs / FFT_LEN;
     *FFT_Ampl = sqrtf(DatePower2);
 }
-
