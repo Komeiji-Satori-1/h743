@@ -246,7 +246,7 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
     sprintf((char *)buf, "%.2f", upper_cutoff_freq);
     HMI_send_string("freq", (char *)buf);
 
-    HMI_Wave_Fast("s0", 1, j, wave_data);
+    HMI_Wave_Fast(1, 1, j, wave_data);
 
     memset(sweep_gain, 0, sizeof(sweep_gain));
     memset(sweep_freq_buf, 0, sizeof(sweep_freq_buf));
