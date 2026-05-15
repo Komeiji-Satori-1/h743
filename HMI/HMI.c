@@ -23,10 +23,11 @@ void HMI_send_float(char* obj_name, float num)
 }
 
 // 添加波形数据点（单个点）
-void HMI_Wave(char* wf_name, int ch, int val)
+// wf_id: 控件的数字 id（属性面板中的 id 字段），不是控件名
+void HMI_Wave(int wf_id, int ch, int val)
 {
-    // 格式: add wf_name,ch,val + 0xFF 0xFF 0xFF
-    printf("add %s,%d,%d\xff\xff\xff", wf_name, ch, val);
+    // 格式: add id,ch,val + 0xFF 0xFF 0xFF
+    printf("add %d,%d,%d\xff\xff\xff", wf_id, ch, val);
 }
 
 // 快速波形显示（连续数据）
@@ -41,10 +42,11 @@ void HMI_Wave_Fast(char* wf_name, int ch, int count, float* show_data)
 }
 
 // 清空波形
-void HMI_Wave_Clear(char* wf_name, int ch)
+// wf_id: 控件的数字 id，255 表示清空所有通道
+void HMI_Wave_Clear(int wf_id, int ch)
 {
-    // 格式: cle wf_name,ch + 0xFF 0xFF 0xFF
-    printf("cle %s,%d\xff\xff\xff", wf_name, ch);
+    // 格式: cle id,ch + 0xFF 0xFF 0xFF
+    printf("cle %d,%d\xff\xff\xff", wf_id, ch);
 }
 
 // 额外功能：设置组件属性
