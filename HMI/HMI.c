@@ -30,13 +30,14 @@ void HMI_Wave(int wf_id, int ch, int val)
     printf("add %d,%d,%d\xff\xff\xff", wf_id, ch, val);
 }
 
-// 快速波形显示（连续数据）
-void HMI_Wave_Fast(char* wf_name, int ch, int count, float* show_data)
+// 快速波形显示（透传，连续数据）
+// wf_id: 控件数字 id，data: uint8_t 数组，每个字节为 0-255 的波形值
+void HMI_Wave_Fast(int wf_id, int ch, int count, uint8_t* data)
 {
-    printf("addt %s,%d,%d\xff\xff\xff", wf_name, ch, count);
+    printf("addt %d,%d,%d\xff\xff\xff", wf_id, ch, count);
     HAL_Delay(20);
 
-    HAL_UART_Transmit(&huart1, (uint8_t*)show_data, count, 1000);
+    HAL_UART_Transmit(&huart1, data, (uint16_t)count, 1000);
 
     HAL_Delay(20);
 }
