@@ -1,0 +1,145 @@
+# =============================================================================
+# IDE & Editor Configuration (contains user-specific/absolute paths)
+# =============================================================================
+/.vscode/
+/.settings
+/.clangd
+*.code-workspace.local
+
+# =============================================================================
+# EIDE (Embedded IDE) files
+# =============================================================================
+/.eide/log
+/.eide.usr.ctx.json
+
+# =============================================================================
+# Build Output & Intermediate Files
+# =============================================================================
+/build/
+/bin/
+/obj/
+/out/
+# Keil MDK-ARM 本地配置
+*.uvguix.*
+*.opt
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.map.old
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.bin
+*.s19
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.dwo
+
+# =============================================================================
+# Keil MDK-ARM Specific
+# =============================================================================
+# 忽略 MDK-ARM 下的所有东西
+MDK-ARM/*
+*.mxproject
+# !!! 关键：强制包含启动文件 !!!
+!MDK-ARM/startup_stm32h743xx.s
+*.crf
+*.lst
+*.dbgconf.local
+*.jlink
+*.ini.bak
+*.elf.map
+
+# =============================================================================
+# CubeMX Temporary Files
+# =============================================================================
+*.ioc.bak
+*.ioc.tmp
+
+# =============================================================================
+# Temporary & Backup Files
+# =============================================================================
+*.bak
+*.BAK
+*.tmp
+*.tmp_cdt
+*.s#?
+*.swp
+*.swo
+*~
+
+# Log Files
+*.log
+*.build_log.*
+*.bld
+
+# OS Generated Files
+Thumbs.db
+.DS_Store
+.directory
+
+# Templates
+*.ept
+*.eide-template
+
+# =============================================================================
+# Other IDE & Tool Caches
+# =============================================================================
+.cache/
+.vs/
+*.psess
+*.vsp
+*.vspx
+.mxproject
+
+# =============================================================================
+# Local Python debug tools, virtual environments, and captured waveform data
+# =============================================================================
+*.py
+__pycache__/
+*.py[cod]
+.python-version
+.venv/
+venv/
+env/
+ENV/
+wave_data/*.csv
+wave_data/*.txt
+wave_data/*.bin
+wave_data/*.npy
+wave_data/*.npz
