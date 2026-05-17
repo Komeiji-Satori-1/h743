@@ -207,7 +207,10 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
             Calculate_Gain();
             sweep_gain[j] = Au;
             sweep_freq_buf[j] = f;
-            wave_data[j] = (uint8_t)((Au - 35.0f) * 255.0f / 15.0f);
+            float val_lo = (Au - 35.0f) * 255.0f / 15.0f;
+            if (val_lo < 0.0f)   val_lo = 0.0f;
+            if (val_lo > 255.0f) val_lo = 255.0f;
+            wave_data[j] = (uint8_t)val_lo;
             j++;
         }
         else
@@ -228,7 +231,10 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
             Calculate_Gain();
             sweep_gain[j] = Au;
             sweep_freq_buf[j] = f;
-            wave_data[j] = (uint8_t)((Au - 35.0f) * 255.0f / 15.0f);
+            float val_hi = (Au - 35.0f) * 255.0f / 15.0f;
+            if (val_hi < 0.0f)   val_hi = 0.0f;
+            if (val_hi > 255.0f) val_hi = 255.0f;
+            wave_data[j] = (uint8_t)val_hi;
             j++;
         }
     }
@@ -246,7 +252,7 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
     sprintf((char *)buf, "%.2f", upper_cutoff_freq);
     HMI_send_string("freq", (char *)buf);
 
-    HMI_Wave_Fast(1, 1, j, wave_data);
+    HMI_Wave_Fast(1, 0, j, wave_data);
 
     memset(sweep_gain, 0, sizeof(sweep_gain));
     memset(sweep_freq_buf, 0, sizeof(sweep_freq_buf));

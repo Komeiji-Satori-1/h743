@@ -236,23 +236,13 @@ int main(void)
         }
         else if (task_sweep == 1)
         {
-            if (ADC_Flag == 1)
-            {
-                Split_ADC_Buffers();
 
-                static uint8_t wave_data[200];
-                for (int i = 0; i < 200; i++)
-                {
-                    uint16_t idx = (uint16_t)(i * ADC_SIZE / 200);
-                    wave_data[i] = (uint8_t)(ADC_U0[idx] >> 4);
-                }
+            Split_ADC_Buffers();
+            
 
-                HMI_Wave_Clear(1, 0);
-                HAL_Delay(20);
-                HMI_Wave_Fast(1, 0, 200, wave_data);
+            sweep_freq(1000, 200000, 1000);
 
-                Start_ADC_Capture();
-            }
+            Start_ADC_Capture();
         }
         else if (task_fault == 1)
         {
