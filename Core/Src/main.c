@@ -113,7 +113,7 @@ void Set_ADC_SampleRate(float sample_rate_hz)
     FFT_SetSampling(TIM3_COUNTER_CLK_HZ / (float)(arr + 1U));
 }
 
-static void Split_ADC_Buffers(void)
+void Split_ADC_Buffers(void)
 {
     for (uint16_t i = 0; i < ADC_SIZE; i++)
     {
@@ -125,7 +125,7 @@ static void Split_ADC_Buffers(void)
 }
 
 /* Start one new synchronous acquisition frame on ADC1 and ADC2. */
-static void Start_ADC_Capture(void)
+void Start_ADC_Capture(void)
 {
     HAL_ADC_Stop_DMA(&hadc1);
     HAL_ADC_Stop_DMA(&hadc2);
@@ -221,50 +221,8 @@ int main(void)
         //              Start_ADC_Capture();
         //           }
 
-        if (task_measure == 1)
-        {
-            if (ADC_Flag == 1)
-            {
+        main_state();
 
-                Split_ADC_Buffers();
-
-                printf("=== [task_measure] Calculate_Input_Impedance start ===\n");
-                Calculate_Input_Impedance(Rs);
-                Calculate_Output_Impedance(RL);
-                Calculate_Gain();
-
-                Start_ADC_Capture();
-            }
-        }
-        else if (task_sweep == 1)
-        {
-
-            Split_ADC_Buffers();
-            task_sweep = 0;
-
-            sweep_freq(1000, 200000, 1000);
-
-            Start_ADC_Capture();
-            task_measure = 0;
-        }
-        else if (task_fault == 1)
-        {
-
-            task_measure = 0;
-            Split_ADC_Buffers();
-
-            ErrorDetect();
-
-            Start_ADC_Capture();
-            task_measure = 0;
-        }
-        else
-        {
-            task_none = 0;
-            task_measure = 0;
-            task_sweep = 0;
-            task_fault = 0;
-        }
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */

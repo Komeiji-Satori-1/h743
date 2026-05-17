@@ -311,7 +311,6 @@ void ErrorDetect(void)
     ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
     Set_ADC_SampleRate(20000.0f);
     HAL_Delay(100);
-    Acquire_All_ADC_Samples_Blocking(300U); /* 丢弃第一帧（信号建立瞬态） */
     Acquire_All_ADC_Samples_Blocking(300U); /* 使用稳态帧 */
 
     /* 输入阻抗（使用当前 relay-on 采样帧，不受 relay 状态影响） */
