@@ -256,6 +256,10 @@ int main(void)
         }
         else
         {
+            task_none = 0;
+            task_measure = 0;
+            task_sweep = 0;
+            task_fault = 0;
         }
         /* USER CODE END WHILE */
 
