@@ -62,17 +62,17 @@ typedef enum
  */
 void Calculate_Input_Impedance(int Rs)
 {   
-    printf("Calculate_Input_Impedance begin\n");
-    printf("FFT_Process ADC_Ui begin\n");
+    //printf("Calculate_Input_Impedance begin\n");
+    //printf("FFT_Process ADC_Ui begin\n");
     FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
-    printf("FFT_Ampl1(Ui)=%.4f  peak_bin=%lu\n", FFT_Ampl1, (unsigned long)FFT_mag_max_index);
-    printf("FFT_Process ADC_Us begin\n");
+    //printf("FFT_Ampl1(Ui)=%.4f  peak_bin=%lu\n", FFT_Ampl1, (unsigned long)FFT_mag_max_index);
+    //printf("FFT_Process ADC_Us begin\n");
     FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
-    printf("FFT_Ampl2(Us)=%.4f  peak_bin=%lu\n", FFT_Ampl2, (unsigned long)FFT_mag_max_index);
+    //printf("FFT_Ampl2(Us)=%.4f  peak_bin=%lu\n", FFT_Ampl2, (unsigned long)FFT_mag_max_index);
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
-    printf("Ri=%.3f\n",Ri);
-    //sprintf((char *)buf, "%.1f", Ri);
-    //HMI_send_string("t0", (char *)buf);
+    //printf("Ri=%.3f\n",Ri);
+    sprintf((char *)buf, "%.1f", Ri);
+    HMI_send_string("t0", (char *)buf);
     //printf("Calculate_Input_Impedance done\n");
 }
 
@@ -95,11 +95,11 @@ void Calculate_Input_Impedance(int Rs)
  */
 void Calculate_Output_Impedance(int RL)
 {
-    printf("Calculate_Output_Impedance begin\n");
+    //printf("Calculate_Output_Impedance begin\n");
     /* 步骤1: 继电器当前接通，此帧数据即为带载测量值 */
-    printf("FFT_Process ADC_U0 begin\n");
+    //printf("FFT_Process ADC_U0 begin\n");
     FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = U0 (带载)
-    printf("FFT_Process ADC_U0 done\n");
+    //printf("FFT_Process ADC_U0 done\n");
     /* 步骤2: 断开负载，等待信号稳定 */
 
     Relay_Off();
@@ -107,19 +107,19 @@ void Calculate_Output_Impedance(int RL)
     /* 步骤3~4: 重采样，获取空载电压 */
     if (Acquire_All_ADC_Samples_Blocking(200U) == 1U)
     {
-        printf("FFT_Process ADC_U∞ begin\n");
+        //printf("FFT_Process ADC_U∞ begin\n");
         FFT_Process(ADC_U0, &FFT_Ampl2); // FFT_Ampl2 = U∞ (空载)
-        printf("FFT_Process ADC_U∞ done\n");
+        //printf("FFT_Process ADC_U∞ done\n");
         R0 = (float)RL * (FFT_Ampl2 - FFT_Ampl1) / FFT_Ampl1;
-        printf("R0=%.3f\n",R0);
-        //sprintf((char *)buf, "%.1f", R0);
-        //HMI_send_string("t1", (char *)buf);
+        //printf("R0=%.3f\n",R0);
+        sprintf((char *)buf, "%.1f", R0);
+        HMI_send_string("t1", (char *)buf);
     }
 
     /* 步骤5: 恢复负载接通，保证后续测量环境一致 */
     Relay_On();
     HAL_Delay(50);
-    printf("Calculate_Output_Impedance done\n");
+    //printf("Calculate_Output_Impedance done\n");
 }
 
 /**
@@ -133,7 +133,7 @@ void Calculate_Output_Impedance(int RL)
  */
 void Calculate_Gain(void)
 {
-    printf("Calculate_Gain begin\n");
+    //printf("Calculate_Gain begin\n");
     Relay_Off();
     HAL_Delay(50);
 
@@ -154,14 +154,14 @@ void Calculate_Gain(void)
             }
             else
                 Au = 0.0f;
-        printf("Au=%.3f\n",Au);
-        //sprintf((char *)buf, "%.1f", Au);
-        //HMI_send_string("t2", (char *)buf);
+        //printf("Au=%.3f\n",Au);
+        sprintf((char *)buf, "%.1f", Au);
+        HMI_send_string("t2", (char *)buf);
     }
 
     Relay_On();
     HAL_Delay(50);
-    printf("Calculate_Gain done\n");
+    //printf("Calculate_Gain done\n");
 }
 
 float Calculate_UpperCutoff_Freq(float *freq_buf, float *gain_buf, uint16_t n, float ref_gain_db)
@@ -203,7 +203,7 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
     static float sweep_gain[200];
     static float sweep_freq_buf[200];
     static uint8_t wave_data[200];
-    uint8_t j = 0;
+    uint8_t j = point_count;
 
     for (f = begin_freq; f <= end_freq; f += step_freq)
     {
@@ -224,7 +224,7 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
             if (val_lo < 0.0f)   val_lo = 0.0f;
             if (val_lo > 255.0f) val_lo = 255.0f;
             wave_data[j] = (uint8_t)val_lo;
-            j++;
+            j--;
         }
         else
         {
@@ -248,7 +248,7 @@ void sweep_freq(float begin_freq, float end_freq, float step_freq)
             if (val_hi < 0.0f)   val_hi = 0.0f;
             if (val_hi > 255.0f) val_hi = 255.0f;
             wave_data[j] = (uint8_t)val_hi;
-            j++;
+            j--;
         }
     }
 
@@ -314,7 +314,7 @@ void ErrorDetect(void)
     Acquire_All_ADC_Samples_Blocking(300U); /* 使用稳态帧 */
 
     /* 输入阻抗（使用当前 relay-on 采样帧，不受 relay 状态影响） */
-    printf("=== [ErrorDetect] Calculate_Input_Impedance start ===\n");
+    //printf("=== [ErrorDetect] Calculate_Input_Impedance start ===\n");
     Calculate_Input_Impedance(Rs);
     /* 输出直流（relay 断开 = 空载，即 DC_Uinf，单位：ADC 计数）
      * 12bit ADC / 3.3V VREF: 1 LSB ≈ 0.806 mV
@@ -331,7 +331,7 @@ void ErrorDetect(void)
     Calculate_Gain();
     float au_1k = Au;
 
-    printf("L1: DC_U0=%.1f Ri=%.1f Au=%.3f\n", dc_u0, Ri, au_1k);
+    //printf("L1: DC_U0=%.1f Ri=%.1f Au=%.3f\n", dc_u0, Ri, au_1k);
 
     /* ---- 分支1: 输出直流饱和到 VCC ---- */
     if (dc_u0 > 65500.0f)           /* > ~3.07V: R1开路或R2短路（正常≈3421，饱和=4095） */
@@ -381,7 +381,7 @@ void ErrorDetect(void)
             Calculate_Gain();
             float au_100k = Au;
             float drop_100k = au_1k - au_100k;
-            printf("L2: Au@100k=%.3f drop=%.3f\n", au_100k, drop_100k);
+            //printf("L2: Au@100k=%.3f drop=%.3f\n", au_100k, drop_100k);
 
             /* 2.2 测 200kHz 增益（k=10，target_fs=19900Hz） */
             f = 200000.0f;
@@ -391,7 +391,7 @@ void ErrorDetect(void)
             Calculate_Gain();
             float au_200k = Au;
             float drop_200k = au_1k - au_200k;
-            printf("L2: Au@200k=%.3f drop=%.3f\n", au_200k, drop_200k);
+            //printf("L2: Au@200k=%.3f drop=%.3f\n", au_200k, drop_200k);
 
             if (drop_100k > 2.5f)
             {
@@ -412,7 +412,7 @@ void ErrorDetect(void)
                 HAL_Delay(300);
                 Acquire_All_ADC_Samples_Blocking(3000U);
                 float phase_lf = Calculate_Phase_Deg();
-                printf("L3: Phase@10Hz=%.3f\n", phase_lf);
+                //printf("L3: Phase@10Hz=%.3f\n", phase_lf);
 
                 if (phase_lf < -143.0f)
                     fault = FAULT_C1_DOUBLE;   /* 正常~-141.3°，故障~-145° */
@@ -446,6 +446,6 @@ void ErrorDetect(void)
         "C3 Double",
         "Unknown"};
 
-    printf("ErrorDetect: %s\n", fault_names[fault]);
+    //printf("ErrorDetect: %s\n", fault_names[fault]);
     HMI_send_string("error", fault_names[fault]);
 }

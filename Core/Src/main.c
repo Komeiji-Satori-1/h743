@@ -70,15 +70,10 @@ uint16_t ADC_8307[ADC_SIZE] = {0};
 volatile uint8_t ADC_Flag = 0;
 static volatile uint8_t adc1_done = 0;
 static volatile uint8_t adc2_done = 0;
-volatile uint8_t task_none = 0;
-
 /* Input/output resistance values used by the basic measurement functions. */
 int RL = 2000;
 int Rs = 10000;
 int r = 1;
-volatile uint8_t task_measure = 0;
-volatile uint8_t task_sweep = 0;
-volatile uint8_t task_fault = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

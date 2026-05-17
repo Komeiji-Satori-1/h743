@@ -2,15 +2,15 @@
 
 #define len 128
 
-extern volatile uint8_t task_measure;
-extern volatile uint8_t task_sweep;
-extern volatile uint8_t task_fault;
-extern volatile uint8_t task_none;
+static uint8_t task_measure;
+static uint8_t task_sweep;
+static uint8_t task_fault;
+static uint8_t task_none;
 extern volatile uint8_t ADC_Flag;
 extern void Split_ADC_Buffers(void);
 extern void Start_ADC_Capture(void);
-extern float Rs;
-extern float RL;
+extern int Rs;
+extern int RL;
 
 
 typedef enum
@@ -76,28 +76,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     {
         switch (uart_rx_byte)
         {
-        case 0x01:
+        case 0xA1:
             task_measure = 1;
             task_sweep = 0;
             task_fault = 0;
             task_none = 0;
             break;
 
-        case 0x02:
+        case 0xA2:
             task_measure = 0;
             task_sweep = 1;
             task_fault = 0;
             task_none = 0;
             break;
 
-        case 0x03:
+        case 0xA3:
             task_measure = 0;
             task_sweep = 0;
             task_fault = 1;
             task_none = 0;
             break;
 
-        case 0x04:
+        case 0xA4:
             task_measure = 0;
             task_sweep = 0;
             task_fault = 0;
