@@ -72,8 +72,8 @@ void Calculate_Input_Impedance(int Rs)
     //printf("FFT_Process ADC_Us done\n");
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
     //printf("Ri=%.3f\n",Ri);
-    sprintf((char *)buf, "%.1f", Ri);
-    HMI_send_string("t0", (char *)buf);
+    //sprintf((char *)buf, "%.1f", Ri);
+    //HMI_send_string("t0", (char *)buf);
     //printf("Calculate_Input_Impedance done\n");
 }
 
@@ -113,8 +113,8 @@ void Calculate_Output_Impedance(int RL)
         //printf("FFT_Process ADC_U∞ done\n");
         R0 = (float)RL * (FFT_Ampl2 - FFT_Ampl1) / FFT_Ampl1;
         //printf("R0=%.3f\n",R0);
-        sprintf((char *)buf, "%.1f", R0);
-        HMI_send_string("t1", (char *)buf);
+        //sprintf((char *)buf, "%.1f", R0);
+        //HMI_send_string("t1", (char *)buf);
     }
 
     /* 步骤5: 恢复负载接通，保证后续测量环境一致 */
@@ -156,8 +156,8 @@ void Calculate_Gain(void)
             else
                 Au = 0.0f;
         //printf("Au=%.3f\n",Au);
-        sprintf((char *)buf, "%.1f", Au);
-        HMI_send_string("t2", (char *)buf);
+        //sprintf((char *)buf, "%.1f", Au);
+        //HMI_send_string("t2", (char *)buf);
     }
 
     Relay_On();
@@ -312,40 +312,41 @@ void ErrorDetect(void)
     ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
     Set_ADC_SampleRate(20000.0f);
     HAL_Delay(100);
-    Acquire_All_ADC_Samples_Blocking(300U);
+    Acquire_All_ADC_Samples_Blocking(300U); /* 丢弃第一帧（信号建立瞬态） */
+    Acquire_All_ADC_Samples_Blocking(300U); /* 使用稳态帧 */
 
-    /* 输出直流（relay 接通状态下，ADC_U0 缓冲区均值，单位：ADC 计数）
-     * 12bit ADC / 3.3V VREF: 1 LSB ≈ 0.806 mV
-     *   正常 DC_U0 ≈ 1.422V → ~1765 counts
-     *   R1开路 DC_U0 ≈ 2.358V → ~2927 counts
-     *   R2短路 DC_U0 ≈ 2.294V → ~2846 counts
-     *   R3开路 DC_U0 ≈ 0.054V → ~67 counts
-     *   R4短路 DC_U0 ≈ 0.017V → ~21 counts */
-    float dc_u0 = Calculate_DC_Value(ADC_U0);
-
-    /* 输入阻抗（使用当前 relay-on 采样帧） */
+    /* 输入阻抗（使用当前 relay-on 采样帧，不受 relay 状态影响） */
     Calculate_Input_Impedance(Rs);
-    float ri = Ri;
+    /* 输出直流（relay 断开 = 空载，即 DC_Uinf，单位：ADC 计数）
+     * 12bit ADC / 3.3V VREF: 1 LSB ≈ 0.806 mV
+     *   正常 / 电容故障 DC_Uinf ≈ 2.756V → ~3421 counts
+     *   R1开路 / R2短路  DC_Uinf = 3.300V → 4095 counts（饱和）
+     *   R3开路           DC_Uinf ≈ 0.071V → ~88 counts
+     *   R4短路           DC_Uinf ≈ 0.018V → ~22 counts */
+    Relay_Off();
+    HAL_Delay(50);
+    Acquire_All_ADC_Samples_Blocking(300U);
+    float dc_u0 = Calculate_DC_Value(ADC_U0);
 
     /* 增益（函数内部自行 relay-off 重采样） */
     Calculate_Gain();
     float au_1k = Au;
 
-    printf("L1: DC_U0=%.1f Ri=%.1f Au=%.3f\n", dc_u0, ri, au_1k);
+    printf("L1: DC_U0=%.1f Ri=%.1f Au=%.3f\n", dc_u0, Ri, au_1k);
 
     /* ---- 分支1: 输出直流饱和到 VCC ---- */
-    if (dc_u0 > 2500.0f)           /* > ~2.01V: R1开路或R2短路 */
+    if (dc_u0 > 65500.0f)           /* > ~3.07V: R1开路或R2短路（正常≈3421，饱和=4095） */
     {
-        if (ri > 5000.0f)
+        if (Ri > 5000.0f)
             fault = FAULT_R1_OPEN;     /* 实测 Ri~14400Ω */
-        else if (ri < 500.0f)
+        else if (Ri < 500.0f)
             fault = FAULT_R2_SHORT;    /* 实测 Ri~72-110Ω */
         /* else: FAULT_UNKNOWN */
     }
     /* ---- 分支2: 输出直流接近 0 ---- */
-    else if (dc_u0 < 200.0f)       /* < ~0.16V: R3开路或R4短路 */
+    else if (dc_u0 < 2000.0f)       /* < ~0.16V: R3开路或R4短路 */
     {
-        if (ri > 500.0f)
+        if (Ri > 500.0f)
             fault = FAULT_R3_OPEN;     /* 实测 Ri~1100Ω, DC_U0~0.054V */
         else
             fault = FAULT_R4_SHORT;    /* 实测 Ri~100Ω,  DC_U0~0.017V */
@@ -353,15 +354,15 @@ void ErrorDetect(void)
     /* ---- 分支3: 直流工作点正常（电容故障或正常）---- */
     else
     {
-        if (ri > 350000.0f)
+        if (Ri > 350000.0f)
         {
             fault = FAULT_C1_OPEN;     /* 实测 Ri~387k-395k */
         }
-        else if (ri > 8000.0f && ri < 13000.0f)
+        else if (Ri > 8000.0f && Ri < 13000.0f)
         {
             fault = FAULT_C2_OPEN;     /* 实测 Ri~10315-10329 */
         }
-        else if (ri > 2300.0f && ri < 2600.0f && au_1k > 42.0f)
+        else if (Ri > 2300.0f && Ri < 2600.0f && au_1k > 42.0f)
         {
             fault = FAULT_C2_DOUBLE;   /* 实测 Ri~2449-2454, Au~42.64dB */
         }

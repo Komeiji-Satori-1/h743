@@ -1,25 +1,42 @@
 #include "HMI.h"
 #include "usart.h"
 
+static const uint8_t hmi_term[3] = {0xFF, 0xFF, 0xFF};
+
+/* 发送 FF FF FF 清空 Nextion 命令缓冲区中因 printf 调试输出积压的垃圾字节 */
+static void HMI_flush(void)
+{
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
+}
+
 // 发送字符串（用于文本显示）
 void HMI_send_string(char* obj_name, char* showdata)
 {
-    // 格式: obj_name.txt="content" + 0xFF 0xFF 0xFF
-    printf("%s.txt=\"%s\"\xff\xff\xff", obj_name, showdata);
+    uint8_t buf[64];
+    int len = snprintf((char *)buf, sizeof(buf), "%s.txt=\"%s\"", obj_name, showdata);
+    HMI_flush();
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)len, 1000);
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
 }
 
 // 发送整数
 void HMI_send_number(char* obj_name, int num)
 {
-    // 格式: obj_name.val=num + 0xFF 0xFF 0xFF
-    printf("%s.val=%d\xff\xff\xff", obj_name, num);
+    uint8_t buf[32];
+    int len = snprintf((char *)buf, sizeof(buf), "%s.val=%d", obj_name, num);
+    HMI_flush();
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)len, 1000);
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
 }
 
 // 发送浮点数（转换为整数或特定精度）
 void HMI_send_float(char* obj_name, float num)
 {
-    // 格式: obj_name.val=num (乘以1000保留3位小数) + 0xFF 0xFF 0xFF
-    printf("%s.val=%d\xff\xff\xff", obj_name, (int)(num * 1000));
+    uint8_t buf[32];
+    int len = snprintf((char *)buf, sizeof(buf), "%s.val=%d", obj_name, (int)(num * 1000));
+    HMI_flush();
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)len, 1000);
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
 }
 
 // 添加波形数据点（单个点）
@@ -61,15 +78,21 @@ void HMI_Wave_Clear(int wf_id, int ch)
 // 额外功能：设置组件属性
 void HMI_set_property(char* obj_name, char* property, int value)
 {
-    // 格式: obj_name.property=value + 0xFF 0xFF 0xFF
-    printf("%s.%s=%d\xff\xff\xff", obj_name, property, value);
+    uint8_t buf[48];
+    int len = snprintf((char *)buf, sizeof(buf), "%s.%s=%d", obj_name, property, value);
+    HMI_flush();
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)len, 1000);
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
 }
 
 // 设置页面
 void HMI_Set_Page(char *page_id)
 {
-    // 格式: page page_id + 0xFF 0xFF 0xFF
-    printf("page %s\xff\xff\xff", page_id);
+    uint8_t buf[24];
+    int len = snprintf((char *)buf, sizeof(buf), "page %s", page_id);
+    HMI_flush();
+    HAL_UART_Transmit(&huart1, buf, (uint16_t)len, 1000);
+    HAL_UART_Transmit(&huart1, hmi_term, 3, 1000);
 }
 
 

@@ -75,7 +75,7 @@ volatile uint8_t task_none = 0;
 /* Input/output resistance values used by the basic measurement functions. */
 int RL = 2000;
 int Rs = 10000;
-int r=1;
+int r = 1;
 volatile uint8_t task_measure = 0;
 volatile uint8_t task_sweep = 0;
 volatile uint8_t task_fault = 0;
@@ -199,10 +199,10 @@ int main(void)
     HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
     HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
     HAL_TIM_Base_Start(&htim3);
-    My_Usart_Init();
     ad9833_init();
     ad9833_set_amplitude(128);
-    HAL_Delay(1000);
+    HAL_Delay(1000); // Nextion 在这 1 秒内完成启动
+    My_Usart_Init(); // ← 现在 Nextion 能正确接收并执行 bkcmd=0
     Start_ADC_Capture();
 
     /* USER CODE END 2 */
@@ -225,7 +225,7 @@ int main(void)
         {
             if (ADC_Flag == 1)
             {
-                
+
                 Split_ADC_Buffers();
 
                 Calculate_Input_Impedance(Rs);
@@ -233,14 +233,13 @@ int main(void)
                 Calculate_Gain();
 
                 Start_ADC_Capture();
-                
             }
         }
         else if (task_sweep == 1)
         {
 
             Split_ADC_Buffers();
-            
+            task_sweep = 0;
 
             sweep_freq(1000, 200000, 1000);
 
