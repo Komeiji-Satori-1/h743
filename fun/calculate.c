@@ -62,19 +62,19 @@ typedef enum
  */
 void Calculate_Input_Impedance(int Rs)
 {   
-    printf("Calculate_Input_Impedance begin\n");
-    printf("FFT_Process ADC_Ui begin\n");
+    //printf("Calculate_Input_Impedance begin\n");
+    //printf("FFT_Process ADC_Ui begin\n");
     FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
-    printf("FFT_Process ADC_Ui done\n");
-    printf("--------------------------\n");
-    printf("FFT_Process ADC_Us begin\n");
+    //printf("FFT_Process ADC_Ui done\n");
+    //printf("--------------------------\n");
+    //printf("FFT_Process ADC_Us begin\n");
     FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
-    printf("FFT_Process ADC_Us done\n");
+    //printf("FFT_Process ADC_Us done\n");
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
-    printf("Ri=%.3f\n",Ri);
-    //sprintf((char *)buf, "%.1f", Ri);
-    //HMI_send_string("t0", (char *)buf);
-    printf("Calculate_Input_Impedance done\n");
+    //printf("Ri=%.3f\n",Ri);
+    sprintf((char *)buf, "%.1f", Ri);
+    HMI_send_string("t0", (char *)buf);
+    //printf("Calculate_Input_Impedance done\n");
 }
 
 /**
@@ -96,11 +96,11 @@ void Calculate_Input_Impedance(int Rs)
  */
 void Calculate_Output_Impedance(int RL)
 {
-    printf("Calculate_Output_Impedance begin\n");
+    //printf("Calculate_Output_Impedance begin\n");
     /* 步骤1: 继电器当前接通，此帧数据即为带载测量值 */
-    printf("FFT_Process ADC_U0 begin\n");
+    //printf("FFT_Process ADC_U0 begin\n");
     FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = U0 (带载)
-    printf("FFT_Process ADC_U0 done\n");
+    //printf("FFT_Process ADC_U0 done\n");
     /* 步骤2: 断开负载，等待信号稳定 */
 
     Relay_Off();
@@ -108,19 +108,19 @@ void Calculate_Output_Impedance(int RL)
     /* 步骤3~4: 重采样，获取空载电压 */
     if (Acquire_All_ADC_Samples_Blocking(200U) == 1U)
     {
-        printf("FFT_Process ADC_U∞ begin\n");
+        //printf("FFT_Process ADC_U∞ begin\n");
         FFT_Process(ADC_U0, &FFT_Ampl2); // FFT_Ampl2 = U∞ (空载)
-        printf("FFT_Process ADC_U∞ done\n");
+        //printf("FFT_Process ADC_U∞ done\n");
         R0 = (float)RL * (FFT_Ampl2 - FFT_Ampl1) / FFT_Ampl1;
-        printf("R0=%.3f\n",R0);
-        //sprintf((char *)buf, "%.1f", R0);
-        //HMI_send_string("t1", (char *)buf);
+        //printf("R0=%.3f\n",R0);
+        sprintf((char *)buf, "%.1f", R0);
+        HMI_send_string("t1", (char *)buf);
     }
 
     /* 步骤5: 恢复负载接通，保证后续测量环境一致 */
     Relay_On();
     HAL_Delay(50);
-    printf("Calculate_Output_Impedance done\n");
+    //printf("Calculate_Output_Impedance done\n");
 }
 
 /**
@@ -134,7 +134,7 @@ void Calculate_Output_Impedance(int RL)
  */
 void Calculate_Gain(void)
 {
-    printf("Calculate_Gain begin\n");
+    //printf("Calculate_Gain begin\n");
     Relay_Off();
     HAL_Delay(50);
 
@@ -155,14 +155,14 @@ void Calculate_Gain(void)
             }
             else
                 Au = 0.0f;
-        printf("Au=%.3f\n",Au);
-        //sprintf((char *)buf, "%.1f", Au);
-        //HMI_send_string("t2", (char *)buf);
+        //printf("Au=%.3f\n",Au);
+        sprintf((char *)buf, "%.1f", Au);
+        HMI_send_string("t2", (char *)buf);
     }
 
     Relay_On();
     HAL_Delay(50);
-    printf("Calculate_Gain done\n");
+    //printf("Calculate_Gain done\n");
 }
 
 float Calculate_UpperCutoff_Freq(float *freq_buf, float *gain_buf, uint16_t n, float ref_gain_db)
@@ -302,113 +302,132 @@ float Calculate_Phase_Deg(void)
 
 void ErrorDetect(void)
 {
-    ad9833_set_freq_ch(1000.0f, ad9833_Sine, ad9833_CH0);
-    ad9833_set_amplitude(128);
-    HAL_Delay(100);
-    Acquire_All_ADC_Samples_Blocking(200U);
-    float vdc_1k = Calculate_DC_Value(ADC_U0);
-    Calculate_Gain();
-    float gain_1k = Au;
-    Calculate_Input_Impedance(Rs);
-    float ri_1k = Ri;
-    Calculate_Output_Impedance(RL);
-    float r0_1k = R0;
-    float phase_1k = Calculate_Phase_Deg();
-
-    /* 1MHz */
-    ad9833_set_freq_ch(1000000.0f, ad9833_Sine, ad9833_CH0);
-    HAL_Delay(100);
-    Acquire_All_ADC_Samples_Blocking(200U);
-    Calculate_Gain();
-    float gain_1m = Au;
-    Calculate_Input_Impedance(Rs);
-    float ri_1m = Ri;
-    Calculate_Output_Impedance(RL);
-    float r0_1m = R0;
-    float phase_1m = Calculate_Phase_Deg();
-
     errortype fault = FAULT_UNKNOWN;
 
-    /* 优先级1: 极端异常 - R3开路 */
-    if (vdc_1k < 150.0f && r0_1k > 25000.0f)
+    /* ================================================================
+     * Level 1: 1kHz 单频点测量
+     * 先判断输出直流工作点（电阻故障影响直流偏置，电容故障不影响）
+     * ================================================================ */
+    f = 1000.0f;
+    ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
+    Set_ADC_SampleRate(20000.0f);
+    HAL_Delay(100);
+    Acquire_All_ADC_Samples_Blocking(300U);
+
+    /* 输出直流（relay 接通状态下，ADC_U0 缓冲区均值，单位：ADC 计数）
+     * 12bit ADC / 3.3V VREF: 1 LSB ≈ 0.806 mV
+     *   正常 DC_U0 ≈ 1.422V → ~1765 counts
+     *   R1开路 DC_U0 ≈ 2.358V → ~2927 counts
+     *   R2短路 DC_U0 ≈ 2.294V → ~2846 counts
+     *   R3开路 DC_U0 ≈ 0.054V → ~67 counts
+     *   R4短路 DC_U0 ≈ 0.017V → ~21 counts */
+    float dc_u0 = Calculate_DC_Value(ADC_U0);
+
+    /* 输入阻抗（使用当前 relay-on 采样帧） */
+    Calculate_Input_Impedance(Rs);
+    float ri = Ri;
+
+    /* 增益（函数内部自行 relay-off 重采样） */
+    Calculate_Gain();
+    float au_1k = Au;
+
+    printf("L1: DC_U0=%.1f Ri=%.1f Au=%.3f\n", dc_u0, ri, au_1k);
+
+    /* ---- 分支1: 输出直流饱和到 VCC ---- */
+    if (dc_u0 > 2500.0f)           /* > ~2.01V: R1开路或R2短路 */
     {
-        fault = FAULT_R3_OPEN;
+        if (ri > 5000.0f)
+            fault = FAULT_R1_OPEN;     /* 实测 Ri~14400Ω */
+        else if (ri < 500.0f)
+            fault = FAULT_R2_SHORT;    /* 实测 Ri~72-110Ω */
+        /* else: FAULT_UNKNOWN */
     }
-    /* 优先级2: 极端异常 - R4短路 */
-    else if (vdc_1k < 15.0f && gain_1k < -33.0f)
+    /* ---- 分支2: 输出直流接近 0 ---- */
+    else if (dc_u0 < 200.0f)       /* < ~0.16V: R3开路或R4短路 */
     {
-        fault = FAULT_R4_SHORT;
+        if (ri > 500.0f)
+            fault = FAULT_R3_OPEN;     /* 实测 Ri~1100Ω, DC_U0~0.054V */
+        else
+            fault = FAULT_R4_SHORT;    /* 实测 Ri~100Ω,  DC_U0~0.017V */
     }
-    /* 优先级3: 饱和状态细分 */
-    else if (vdc_1k > 2900.0f)
+    /* ---- 分支3: 直流工作点正常（电容故障或正常）---- */
+    else
     {
-        if (r0_1k > -20.0f && r0_1k < 20.0f)
+        if (ri > 350000.0f)
         {
-            fault = FAULT_R3_SHORT;
+            fault = FAULT_C1_OPEN;     /* 实测 Ri~387k-395k */
         }
-        else if (ri_1k > 500000.0f)
+        else if (ri > 8000.0f && ri < 13000.0f)
         {
-            fault = FAULT_C1_OPEN;
+            fault = FAULT_C2_OPEN;     /* 实测 Ri~10315-10329 */
         }
-        else if (ri_1k > 130.0f && ri_1k < 220.0f &&
-                 ri_1m > 30.0f && ri_1m < 70.0f)
+        else if (ri > 2300.0f && ri < 2600.0f && au_1k > 42.0f)
         {
-            fault = FAULT_C1_DOUBLE;
+            fault = FAULT_C2_DOUBLE;   /* 实测 Ri~2449-2454, Au~42.64dB */
         }
-        else if (ri_1k > 13000.0f && ri_1k < 17000.0f)
+        else
         {
-            fault = FAULT_R1_OPEN;
-        }
-        else if (ri_1k > 9500.0f && ri_1k < 12500.0f &&
-                 ri_1m > 2800.0f && ri_1m < 3600.0f)
-        {
-            fault = FAULT_R4_OPEN;
-        }
-        else if (ri_1k > 130.0f && ri_1k < 180.0f &&
-                 ri_1m > 40.0f && ri_1m < 65.0f)
-        {
-            fault = FAULT_R2_OPEN;
-        }
-        else if (phase_1k > 30.0f && phase_1k < 90.0f &&
-                 ri_1m > 450.0f && ri_1m < 800.0f)
-        {
-            fault = FAULT_R2_SHORT;
+            /* ============================================================
+             * Level 2: 带宽检测
+             * 正常截止频率 ≈ 171kHz；C3翻倍 fc≈100kHz；C3断路 fc>300kHz
+             * 使用等效采样：alias_freq=1kHz，target_fs=(f-1k)/k
+             * ============================================================ */
+
+            /* 2.1 测 100kHz 增益（k=5，target_fs=19800Hz） */
+            f = 100000.0f;
+            ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
+            Set_ADC_SampleRate((f - 1000.0f) / 5.0f);
+            HAL_Delay(100);
+            Calculate_Gain();
+            float au_100k = Au;
+            float drop_100k = au_1k - au_100k;
+            printf("L2: Au@100k=%.3f drop=%.3f\n", au_100k, drop_100k);
+
+            /* 2.2 测 200kHz 增益（k=10，target_fs=19900Hz） */
+            f = 200000.0f;
+            ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
+            Set_ADC_SampleRate((f - 1000.0f) / 10.0f);
+            HAL_Delay(100);
+            Calculate_Gain();
+            float au_200k = Au;
+            float drop_200k = au_1k - au_200k;
+            printf("L2: Au@200k=%.3f drop=%.3f\n", au_200k, drop_200k);
+
+            if (drop_100k > 2.5f)
+            {
+                fault = FAULT_C3_DOUBLE;   /* fc≈100kHz，100kHz处已衰减>2.5dB */
+            }
+            else if (drop_200k < 2.5f)
+            {
+                fault = FAULT_C3_OPEN;     /* fc>300kHz，200kHz处几乎不衰减 */
+            }
+            else
+            {
+                /* ========================================================
+                 * Level 3: 10Hz 相位检测
+                 * 正常 Phase@10Hz ≈ -141.3°；C1翻倍 ≈ -145°
+                 * ======================================================== */
+                ad9833_set_freq_ch(10.0f, ad9833_Sine, ad9833_CH0);
+                Set_ADC_SampleRate(500.0f);
+                HAL_Delay(300);
+                Acquire_All_ADC_Samples_Blocking(3000U);
+                float phase_lf = Calculate_Phase_Deg();
+                printf("L3: Phase@10Hz=%.3f\n", phase_lf);
+
+                if (phase_lf < -143.0f)
+                    fault = FAULT_C1_DOUBLE;   /* 正常~-141.3°，故障~-145° */
+                else
+                    fault = FAULT_NORMAL;
+            }
         }
     }
-    /* 优先级4: R1短路 */
-    else if (vdc_1k > 2800.0f && vdc_1k < 2850.0f &&
-             gain_1k < -43.0f)
-    {
-        fault = FAULT_R1_SHORT;
-    }
-    /* 优先级5: C2开路 */
-    else if (vdc_1k > 1820.0f && vdc_1k < 1850.0f &&
-             gain_1k < -28.0f && phase_1k > 165.0f)
-    {
-        fault = FAULT_C2_OPEN;
-    }
-    /* 优先级6: 直流正常范围内的细微故障 */
-    else if (vdc_1k > 1820.0f && vdc_1k < 1850.0f)
-    {
-        if (r0_1m > 1400.0f)
-        {
-            fault = FAULT_C3_OPEN;
-        }
-        else if (gain_1m < -14.0f && ri_1m > 900.0f)
-        {
-            fault = FAULT_C3_DOUBLE;
-        }
-        else if (gain_1k > 5.4f && phase_1k < -172.5f)
-        {
-            fault = FAULT_C2_DOUBLE;
-        }
-        else if (gain_1k > 4.6f && gain_1k < 4.9f &&
-                 phase_1k > -169.0f && phase_1k < -165.0f &&
-                 ri_1k > 2600.0f && ri_1k < 2900.0f)
-        {
-            fault = FAULT_NORMAL;
-        }
-    }
+
+    /* 恢复到 1kHz / 20kHz 采样率 */
+    f = 1000.0f;
+    ad9833_set_freq_ch(f, ad9833_Sine, ad9833_CH0);
+    Set_ADC_SampleRate(20000.0f);
+    HAL_Delay(100);
+
     const char *fault_names[] = {
         "Normal",
         "R1 Open",
@@ -427,5 +446,6 @@ void ErrorDetect(void)
         "C3 Double",
         "Unknown"};
 
+    printf("ErrorDetect: %s\n", fault_names[fault]);
     HMI_send_string("error", fault_names[fault]);
 }

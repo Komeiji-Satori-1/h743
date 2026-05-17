@@ -226,7 +226,6 @@ int main(void)
             if (ADC_Flag == 1)
             {
                 
-                printf("Measurement task triggered start[%d]\n",r);
                 Split_ADC_Buffers();
 
                 Calculate_Input_Impedance(Rs);
@@ -234,8 +233,6 @@ int main(void)
                 Calculate_Gain();
 
                 Start_ADC_Capture();
-                printf("Measurement task triggered done[%d]\n",r);
-                r++;
                 
             }
         }
