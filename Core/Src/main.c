@@ -228,6 +228,7 @@ int main(void)
 
                 Split_ADC_Buffers();
 
+                printf("=== [task_measure] Calculate_Input_Impedance start ===\n");
                 Calculate_Input_Impedance(Rs);
                 Calculate_Output_Impedance(RL);
                 Calculate_Gain();
@@ -244,15 +245,18 @@ int main(void)
             sweep_freq(1000, 200000, 1000);
 
             Start_ADC_Capture();
+            task_measure = 0;
         }
         else if (task_fault == 1)
         {
 
+            task_measure = 0;
             Split_ADC_Buffers();
 
             ErrorDetect();
 
             Start_ADC_Capture();
+            task_measure = 0;
         }
         else
         {

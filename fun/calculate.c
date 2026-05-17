@@ -65,10 +65,10 @@ void Calculate_Input_Impedance(int Rs)
     printf("Calculate_Input_Impedance begin\n");
     printf("FFT_Process ADC_Ui begin\n");
     FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
-    printf("FFT_Process ADC_Ui done\n");
+    printf("FFT_Ampl1(Ui)=%.4f  peak_bin=%lu\n", FFT_Ampl1, (unsigned long)FFT_mag_max_index);
     printf("FFT_Process ADC_Us begin\n");
     FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
-    //printf("FFT_Process ADC_Us done\n");
+    printf("FFT_Ampl2(Us)=%.4f  peak_bin=%lu\n", FFT_Ampl2, (unsigned long)FFT_mag_max_index);
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
     printf("Ri=%.3f\n",Ri);
     //sprintf((char *)buf, "%.1f", Ri);
@@ -315,6 +315,7 @@ void ErrorDetect(void)
     Acquire_All_ADC_Samples_Blocking(300U); /* 使用稳态帧 */
 
     /* 输入阻抗（使用当前 relay-on 采样帧，不受 relay 状态影响） */
+    printf("=== [ErrorDetect] Calculate_Input_Impedance start ===\n");
     Calculate_Input_Impedance(Rs);
     /* 输出直流（relay 断开 = 空载，即 DC_Uinf，单位：ADC 计数）
      * 12bit ADC / 3.3V VREF: 1 LSB ≈ 0.806 mV
@@ -345,7 +346,7 @@ void ErrorDetect(void)
     /* ---- 分支2: 输出直流接近 0 ---- */
     else if (dc_u0 < 2000.0f)       /* < ~0.16V: R3开路或R4短路 */
     {
-        if (Ri > 500.0f)
+        if (Ri > 140.0f)
             fault = FAULT_R3_OPEN;     /* 实测 Ri~1100Ω, DC_U0~0.054V */
         else
             fault = FAULT_R4_SHORT;    /* 实测 Ri~100Ω,  DC_U0~0.017V */
