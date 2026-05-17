@@ -7,10 +7,12 @@
 #include "usart.h"
 #include "main.h"
 #include "HMI.h"
+#include "calculate.h"
 
 void Usart_Send_Computer(UART_HandleTypeDef huart , char *msg);
 void My_Usart_Init(void);
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+void main_state(void);
 //void Usart_Rx_Proc(void);
 
 #endif
