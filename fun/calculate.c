@@ -61,13 +61,20 @@ typedef enum
  * @param Rs  串联已知电阻阻值 (Ω)
  */
 void Calculate_Input_Impedance(int Rs)
-{
+{   
+    printf("Calculate_Input_Impedance begin\n");
+    printf("FFT_Process ADC_Ui begin\n");
     FFT_Process(ADC_Ui, &FFT_Ampl1); // 先算 Ui，结果存 FFT_Ampl1
+    printf("FFT_Process ADC_Ui done\n");
+    printf("--------------------------\n");
+    printf("FFT_Process ADC_Us begin\n");
     FFT_Process(ADC_Us, &FFT_Ampl2); // 再算 Us，结果存 FFT_Ampl2
+    printf("FFT_Process ADC_Us done\n");
     Ri = (float)Rs * FFT_Ampl1 / (FFT_Ampl2 - FFT_Ampl1);
-    // printf("%.3f\n",Ri);
-    sprintf((char *)buf, "%.1f", Ri);
-    HMI_send_string("t0", (char *)buf);
+    printf("Ri=%.3f\n",Ri);
+    //sprintf((char *)buf, "%.1f", Ri);
+    //HMI_send_string("t0", (char *)buf);
+    printf("Calculate_Input_Impedance done\n");
 }
 
 /**
@@ -89,9 +96,11 @@ void Calculate_Input_Impedance(int Rs)
  */
 void Calculate_Output_Impedance(int RL)
 {
+    printf("Calculate_Output_Impedance begin\n");
     /* 步骤1: 继电器当前接通，此帧数据即为带载测量值 */
+    printf("FFT_Process ADC_U0 begin\n");
     FFT_Process(ADC_U0, &FFT_Ampl1); // FFT_Ampl1 = U0 (带载)
-
+    printf("FFT_Process ADC_U0 done\n");
     /* 步骤2: 断开负载，等待信号稳定 */
 
     Relay_Off();
@@ -99,16 +108,19 @@ void Calculate_Output_Impedance(int RL)
     /* 步骤3~4: 重采样，获取空载电压 */
     if (Acquire_All_ADC_Samples_Blocking(200U) == 1U)
     {
+        printf("FFT_Process ADC_U∞ begin\n");
         FFT_Process(ADC_U0, &FFT_Ampl2); // FFT_Ampl2 = U∞ (空载)
+        printf("FFT_Process ADC_U∞ done\n");
         R0 = (float)RL * (FFT_Ampl2 - FFT_Ampl1) / FFT_Ampl1;
-        // printf("%.3f\n",R0);
-        sprintf((char *)buf, "%.1f", R0);
-        HMI_send_string("t1", (char *)buf);
+        printf("R0=%.3f\n",R0);
+        //sprintf((char *)buf, "%.1f", R0);
+        //HMI_send_string("t1", (char *)buf);
     }
 
     /* 步骤5: 恢复负载接通，保证后续测量环境一致 */
     Relay_On();
     HAL_Delay(50);
+    printf("Calculate_Output_Impedance done\n");
 }
 
 /**
@@ -122,6 +134,7 @@ void Calculate_Output_Impedance(int RL)
  */
 void Calculate_Gain(void)
 {
+    printf("Calculate_Gain begin\n");
     Relay_Off();
     HAL_Delay(50);
 
@@ -142,13 +155,14 @@ void Calculate_Gain(void)
             }
             else
                 Au = 0.0f;
-        // printf("%.3f\n",Au);
-        sprintf((char *)buf, "%.1f", Au);
-        HMI_send_string("t2", (char *)buf);
+        printf("Au=%.3f\n",Au);
+        //sprintf((char *)buf, "%.1f", Au);
+        //HMI_send_string("t2", (char *)buf);
     }
 
     Relay_On();
     HAL_Delay(50);
+    printf("Calculate_Gain done\n");
 }
 
 float Calculate_UpperCutoff_Freq(float *freq_buf, float *gain_buf, uint16_t n, float ref_gain_db)

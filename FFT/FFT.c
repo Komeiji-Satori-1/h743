@@ -96,7 +96,7 @@ void FFT_Process(uint16_t *ADC_Buffer, float *FFT_Ampl)
     //printf("clear cache\n");
     // 计算均值（直流偏置），后续减去以消除 DC 分量 
     DC = Calculate_DC_Value(ADC_Buffer);
-  
+    printf("直流偏置：%.3f\n", DC/65536.0f*3.3f); // 假设 ADC 参考电压为 3.3V，输出实际电压值
     window();
 
     //去直流 + 加窗，虚部置0

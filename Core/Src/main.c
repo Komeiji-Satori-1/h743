@@ -75,7 +75,7 @@ volatile uint8_t task_none = 0;
 /* Input/output resistance values used by the basic measurement functions. */
 int RL = 2000;
 int Rs = 10000;
-
+int r=1;
 volatile uint8_t task_measure = 0;
 volatile uint8_t task_sweep = 0;
 volatile uint8_t task_fault = 0;
@@ -225,6 +225,8 @@ int main(void)
         {
             if (ADC_Flag == 1)
             {
+                
+                printf("Measurement task triggered start[%d]\n",r);
                 Split_ADC_Buffers();
 
                 Calculate_Input_Impedance(Rs);
@@ -232,6 +234,9 @@ int main(void)
                 Calculate_Gain();
 
                 Start_ADC_Capture();
+                printf("Measurement task triggered done[%d]\n",r);
+                r++;
+                
             }
         }
         else if (task_sweep == 1)
